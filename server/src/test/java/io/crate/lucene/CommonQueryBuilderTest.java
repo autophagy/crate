@@ -53,6 +53,7 @@ import java.util.Map;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.startsWith;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class CommonQueryBuilderTest extends LuceneQueryBuilderTest {
 
@@ -64,7 +65,7 @@ public class CommonQueryBuilderTest extends LuceneQueryBuilderTest {
 
     @Test
     public void testWhereRefEqNullWithDifferentTypes() throws Exception {
-        for (DataType type : DataTypes.PRIMITIVE_TYPES) {
+        for (DataType<?> type : DataTypes.PRIMITIVE_TYPES) {
             if (DataTypes.STORAGE_UNSUPPORTED.contains(type)) {
                 continue;
             }
@@ -526,5 +527,16 @@ public class CommonQueryBuilderTest extends LuceneQueryBuilderTest {
     public void test_is_not_null_on_ignored_results_in_function_query() throws Exception {
         Query query = convert("obj_ignored is not null");
         assertThat(query.toString(), is("(NOT (_doc['obj_ignored'] IS NULL))"));
+    }
+
+    @Test
+    public void test_is_not_null_on_bit_column_uses_doc_values_field_exists_query() throws Exception {
+        Query query = convert("bits is not null");
+        assertThat(query.toString(), is("ConstantScore(DocValuesFieldExistsQuery [field=bits])"));
+    }
+
+    @Test
+    public void test_range_query_on_bit_type_is_not_supported() throws Exception {
+        assertThrows(UnsupportedOperationException.class, () -> convert("bits > B'01'"));
     }
 }

@@ -21,19 +21,12 @@
 
 package io.crate.types;
 
-import io.crate.Streamer;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.lucene.util.BytesRef;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.io.stream.Writeable;
-import org.locationtech.spatial4j.shape.impl.PointImpl;
-import org.locationtech.spatial4j.shape.jts.JtsPoint;
+import static java.util.Map.entry;
+import static java.util.stream.Collectors.toSet;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -44,8 +37,18 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static java.util.Map.entry;
-import static java.util.stream.Collectors.toSet;
+import javax.annotation.Nullable;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.io.stream.Writeable;
+import org.locationtech.spatial4j.shape.impl.PointImpl;
+import org.locationtech.spatial4j.shape.jts.JtsPoint;
+
+import io.crate.Streamer;
 
 public final class DataTypes {
 
@@ -184,7 +187,8 @@ public final class DataTypes {
             entry(RegprocType.ID, in -> REGPROC),
             entry(RegclassType.ID, in -> REGCLASS),
             entry(OidVectorType.ID, in -> OIDVECTOR),
-            entry(DateType.ID, in -> DATE)
+            entry(DateType.ID, in -> DATE),
+            entry(BitStringType.ID, BitStringType::new)
         )
     );
 
@@ -278,7 +282,9 @@ public final class DataTypes {
         entry(BytesRef.class, STRING),
         entry(PointImpl.class, GEO_POINT),
         entry(JtsPoint.class, GEO_POINT),
-        entry(Character.class, STRING));
+        entry(Character.class, STRING),
+        entry(BitSet.class, BitStringType.MAX)
+    );
 
     public static DataType<?> guessType(Object value) {
         if (value == null) {
@@ -397,7 +403,9 @@ public final class DataTypes {
         // to adjust to the change.
         entry("timestamp", TIMESTAMPZ),
         entry("interval", INTERVAL),
-        entry(DATE.getName(), DATE));
+        entry(DATE.getName(), DATE),
+        entry(BitStringType.MAX.getName(), BitStringType.MAX)
+    );
 
     public static DataType<?> ofName(String typeName) {
         DataType<?> dataType = ofNameOrNull(typeName);
@@ -408,6 +416,12 @@ public final class DataTypes {
     }
 
     public static DataType<?> of(String typeName, List<Integer> parameters) {
+        if (typeName.equalsIgnoreCase(BitStringType.NAME)) {
+            if (parameters.isEmpty()) {
+                throw new IllegalArgumentException("bit type requires a length parameter");
+            }
+            return new BitStringType(parameters.get(0));
+        }
         DataType<?> dataType = ofNameOrNull(typeName);
         if (dataType == null) {
             throw new IllegalArgumentException("Cannot find data type: " + typeName);
@@ -464,7 +478,8 @@ public final class DataTypes {
         entry(ObjectType.ID, "object"),
         entry(GEO_SHAPE.id(), "geo_shape"),
         entry(GEO_POINT.id(), "geo_point"),
-        entry(INTERVAL.id(), "interval")
+        entry(INTERVAL.id(), "interval"),
+        entry(BitStringType.ID, "bit")
     );
 
     @Nullable

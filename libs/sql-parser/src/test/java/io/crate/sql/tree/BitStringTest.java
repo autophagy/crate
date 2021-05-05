@@ -34,7 +34,7 @@ public class BitStringTest {
 
     @Test
     public void test_can_parse_bit_string_with_zeros_and_ones() {
-        BitString bit = BitString.of("00000110");
+        BitString bit = BitString.ofRawBits("00000110");
         BitSet expected = new BitSet(8);
         expected.set(5, true);
         expected.set(6, true);
@@ -43,13 +43,13 @@ public class BitStringTest {
 
     @Test
     public void test_bit_string_cannot_contain_values_other_than_zeros_or_ones() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> BitString.of("0021💀"));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> BitString.ofRawBits("0021💀"));
     }
 
     @Test
     public void test_can_render_bistring_as_string() {
         String text = "00000110";
-        BitString bit = BitString.of(text);
+        BitString bit = BitString.ofRawBits(text);
         assertThat(bit.asBitString(), is("B'00000110'"));
     }
 }

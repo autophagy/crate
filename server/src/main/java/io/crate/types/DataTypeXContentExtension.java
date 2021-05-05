@@ -28,7 +28,10 @@ import org.locationtech.spatial4j.shape.Point;
 import org.locationtech.spatial4j.shape.impl.PointImpl;
 import org.locationtech.spatial4j.shape.jts.JtsPoint;
 import io.crate.data.RowN;
+import io.crate.sql.tree.BitString;
 
+import java.util.Base64;
+import java.util.BitSet;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -69,6 +72,12 @@ public class DataTypeXContentExtension implements XContentBuilderExtension {
                 b.value(timetz.getMicrosFromMidnight());
                 b.value(timetz.getSecondsFromUTC());
                 b.endArray();
+            }),
+            Map.entry(BitSet.class, (b, v) -> {
+                BitSet bitset = (BitSet) v;
+                byte[] byteArray = bitset.toByteArray();
+                String encoded = Base64.getEncoder().withoutPadding().encodeToString(byteArray);
+                b.value(encoded);
             })
         );
     }

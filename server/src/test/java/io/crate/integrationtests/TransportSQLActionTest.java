@@ -21,38 +21,6 @@
 
 package io.crate.integrationtests;
 
-import com.carrotsearch.randomizedtesting.RandomizedContext;
-import com.carrotsearch.randomizedtesting.generators.RandomPicks;
-import io.crate.common.collections.Lists2;
-import io.crate.exceptions.SQLExceptions;
-import io.crate.testing.DataTypeTesting;
-import io.crate.testing.UseJdbc;
-import io.crate.testing.UseRandomizedSchema;
-import io.crate.types.DataType;
-import io.crate.types.DataTypes;
-import org.elasticsearch.common.xcontent.DeprecationHandler;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.common.xcontent.json.JsonXContent;
-import org.elasticsearch.index.IndexNotFoundException;
-import org.elasticsearch.test.ESIntegTestCase;
-import org.hamcrest.Matchers;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.locationtech.spatial4j.shape.Point;
-
-import java.io.File;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
 import static com.carrotsearch.randomizedtesting.RandomizedTest.$;
 import static io.crate.protocols.postgres.PGErrorStatus.INTERNAL_ERROR;
 import static io.crate.protocols.postgres.PGErrorStatus.UNDEFINED_TABLE;
@@ -71,6 +39,47 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.core.Is.is;
+
+import java.io.File;
+import java.nio.file.Paths;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.BitSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Random;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import com.carrotsearch.randomizedtesting.RandomizedContext;
+import com.carrotsearch.randomizedtesting.generators.RandomPicks;
+
+import org.elasticsearch.common.xcontent.DeprecationHandler;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
+import org.elasticsearch.index.IndexNotFoundException;
+import org.elasticsearch.test.ESIntegTestCase;
+import org.hamcrest.Matchers;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.locationtech.spatial4j.shape.Point;
+
+import io.crate.common.collections.Lists2;
+import io.crate.exceptions.SQLExceptions;
+import io.crate.sql.tree.BitString;
+import io.crate.testing.DataTypeTesting;
+import io.crate.testing.TestingHelpers;
+import io.crate.testing.UseJdbc;
+import io.crate.testing.UseRandomizedSchema;
+import io.crate.types.DataType;
+import io.crate.types.DataTypes;
 
 @ESIntegTestCase.ClusterScope(minNumDataNodes = 2)
 public class TransportSQLActionTest extends SQLIntegrationTestCase {
@@ -1934,5 +1943,32 @@ public class TransportSQLActionTest extends SQLIntegrationTestCase {
             rows[1],
             Matchers.arrayContaining(Integer.toString(numItems - 2), numItems - 2)
         );
+    }
+
+
+    @Test
+    @UseJdbc(0)
+    @UseRandomizedSchema(random = false)
+    public void test_bit_string_can_be_inserted_and_queried() throws Exception {
+        execute("create table tbl (xs bit(4))");
+        execute("insert into tbl (xs) values (B'0010')");
+        assertThat(response.rowCount(), is(1L));
+        execute("refresh table tbl");
+
+        execute("select xs, _raw from tbl where xs = B'0010'");
+        assertThat(TestingHelpers.printedTable(response.rows()), is(
+            "{2}| {\"xs\":\"BA\"}\n"
+        ));
+
+        var properties = new Properties();
+        properties.put("user", "crate");
+        properties.put("password", "");
+        try (var conn = DriverManager.getConnection(sqlExecutor.jdbcUrl(), properties)) {
+            Statement stmt = conn.createStatement();
+            ResultSet result = stmt.executeQuery("select xs from tbl");
+            assertThat(result.next(), is(true));
+            String string = result.getString(1);
+            assertThat(string, is("B'0010'"));
+        }
     }
 }

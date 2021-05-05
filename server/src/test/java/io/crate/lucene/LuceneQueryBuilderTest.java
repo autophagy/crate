@@ -65,7 +65,8 @@ public abstract class LuceneQueryBuilderTest extends CrateDummyClusterServiceUni
             " shape geo_shape," +
             " point geo_point," +
             " ts timestamp with time zone," +
-            " addr ip" +
+            " addr ip," +
+            " bits bit(8)" +
             ")"
         );
         queryTester = builder.build();

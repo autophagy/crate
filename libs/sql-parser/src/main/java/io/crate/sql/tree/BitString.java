@@ -25,8 +25,23 @@ import java.util.BitSet;
 
 public class BitString extends Literal {
 
-    public static BitString of(String text) {
-        int length = text.length();
+    public static BitString ofBitString(String bitString) {
+        assert bitString.startsWith("B'") : "Bitstring must start with B'";
+        return ofRawBits(bitString.substring(2, bitString.length() - 1));
+    }
+
+    public static BitString ofRawBits(String bits) {
+        int length = bits.length();
+        BitSet bitSet = toBitSet(bits, length);
+        return new BitString(bitSet, length);
+    }
+
+    public static byte[] toBytes(String bitString) {
+        String bits = bitString.substring(2, bitString.length() - 1);
+        return toBitSet(bits, bits.length()).toByteArray();
+    }
+
+    private static BitSet toBitSet(String text, int length) {
         BitSet bitSet = new BitSet(length);
         for (int i = 0; i < length; i++) {
             char c = text.charAt(i);
@@ -39,7 +54,7 @@ public class BitString extends Literal {
             };
             bitSet.set(i, value);
         }
-        return new BitString(bitSet, text.length());
+        return bitSet;
     }
 
     private final BitSet bitSet;
@@ -54,7 +69,15 @@ public class BitString extends Literal {
         return bitSet;
     }
 
+    public int length() {
+        return length;
+    }
+
     public String asBitString() {
+        return toBitString(bitSet, length);
+    }
+
+    public static String toBitString(BitSet bitSet, int length) {
         var sb = new StringBuilder("B'");
         for (int i = 0; i < length; i++) {
             sb.append(bitSet.get(i) ? '1' : '0');
