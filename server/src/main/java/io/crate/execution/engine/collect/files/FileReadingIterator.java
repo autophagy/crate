@@ -41,7 +41,6 @@ import java.io.InputStreamReader;
 import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -67,8 +66,7 @@ public class FileReadingIterator implements BatchIterator<Row> {
     private final int numReaders;
     private final int readerNumber;
     private final boolean compressed;
-
-    private static final Pattern HAS_GLOBS_PATTERN = Pattern.compile("(.*)[^\\\\]\\*.*");
+    private static final Pattern HAS_GLOBS_PATTERN = Pattern.compile("^((s3://|file://|/)[^\\*]*)/[^\\*]*\\*.*");
     private static final Predicate<URI> MATCH_ALL_PREDICATE = (URI input) -> true;
 
     private final List<UriWithGlob> urisWithGlob;
@@ -312,23 +310,19 @@ public class FileReadingIterator implements BatchIterator<Row> {
             URI preGlobUri = null;
             Predicate<URI> globPredicate = null;
             Matcher hasGlobMatcher = HAS_GLOBS_PATTERN.matcher(uri.toString());
+            /*
+             * hasGlobMatcher.group(1) returns part of the path before the wildcards without a trailing backslash,
+             * ex)
+             *      'file:///bucket/prefix/*.json'                           -> 'file:///bucket/prefix'
+             *      's3://bucket/year=2020/month=12/day=*0/hour=12/*.json'   -> 's3://bucket/year=2020/month=12'
+             */
             if (hasGlobMatcher.matches()) {
                 if (fileUri.startsWith("/") || fileUri.startsWith("file://")) {
-                    /*
-                     * Substitute a symlink with the real path.
-                     * The wildcard needs to be maintained, though, because it is used to generate the matcher.
-                     * Take the part before the wildcard (*) and try to resolved the real path.
-                     * If the part before the wildcard contains a part of the filename (e.g. /tmp/foo_*.json) then use the
-                     * parent directory of this filename to resolved the real path.
-                     * Then replace this part with the real path and generate the URI.
-                     */
                     Path oldPath = Paths.get(toURI(hasGlobMatcher.group(1)));
-                    if (!Files.isDirectory(oldPath)) {
-                        oldPath = oldPath.getParent();
-                    }
                     String oldPathAsString;
                     String newPathAsString;
                     try {
+                        //resolve symlink
                         oldPathAsString = oldPath.toUri().toString();
                         newPathAsString = oldPath.toRealPath().toUri().toString();
                     } catch (IOException e) {
@@ -342,7 +336,6 @@ public class FileReadingIterator implements BatchIterator<Row> {
                 }
                 globPredicate = new GlobPredicate(uri);
             }
-
             uris.add(new UriWithGlob(uri, preGlobUri, globPredicate));
         }
         return uris;

@@ -820,4 +820,70 @@ public class CopyIntegrationTest extends SQLHttpIntegrationTest {
             printedTable(response.rows()),
             is("1| foo\n2| NULL\n3| NULL\n"));
     }
+
+    @Test
+    public void testCopyFromFileSchemeWithFileLevelWildCards() throws Exception {
+        String path = Paths.get(getClass().getResource("/essetup/data/").toURI()).toUri().toString();
+        execute("create table t (int int)");
+
+        execute("copy t from ? with(shared=true)", new Object[]{path+ "nested_dir/" + "*.json"});
+        refresh();
+        execute("select * from t order by int");
+        assertThat(
+            printedTable(response.rows()),
+            is("1\n2\n")
+        );
+
+        execute("copy t from ? with(shared=true)", new Object[]{path+ "nested_dir/" + "*_1.json"});
+        refresh();
+        execute("select * from t order by int");
+        assertThat(
+            printedTable(response.rows()),
+            is("1\n1\n2\n")
+        );
+    }
+
+    @Test
+    public void testCopyFromFileSchemeWithFolderLevelWildCards() throws Exception {
+        String path = Paths.get(getClass().getResource("/essetup/data/").toURI()).toUri().toString();
+        execute("create table t (int int)");
+
+        execute("copy t from ? with(shared=true)", new Object[]{path+ "nested_dir/*/" + "*.json"});
+        refresh();
+        execute("select * from t order by int");
+        assertThat(
+            printedTable(response.rows()),
+            is("3\n4\n")
+        );
+
+        execute("copy t from ? with(shared=true)", new Object[]{path+ "nested_dir/*/" + "2_*"});
+        refresh();
+        execute("select * from t order by int");
+        assertThat(
+            printedTable(response.rows()),
+            is("3\n4\n4\n10\n")
+        );
+    }
+
+    @Test
+    public void testCopyFromFileSchemeWithMultipleFolderLevelWildCards() throws Exception {
+        String path = Paths.get(getClass().getResource("/essetup/data/").toURI()).toUri().toString();
+        execute("create table t (int int)");
+
+        execute("copy t from ? with(shared=true)", new Object[]{path+ "nested_dir/nested_dir_2/*/" + "sub.json"});
+        refresh();
+        execute("select * from t order by int");
+        assertThat(
+            printedTable(response.rows()),
+            is("7\n")
+        );
+
+        execute("copy t from ? with(shared=true)", new Object[]{path+ "nested_dir/*/*/" + "sub_*"});
+        refresh();
+        execute("select * from t order by int");
+        assertThat(
+            printedTable(response.rows()),
+            is("5\n6\n7\n8\n")
+        );
+    }
 }

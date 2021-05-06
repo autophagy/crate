@@ -25,19 +25,39 @@ package io.crate.execution.engine.collect.files;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
+import io.crate.analyze.CopyFromParserProperties;
+import io.crate.data.BatchIterator;
+import io.crate.data.Input;
+import io.crate.data.Row;
+import io.crate.execution.dsl.phases.FileUriCollectPhase;
+import io.crate.expression.InputFactory;
+import io.crate.expression.reference.file.FileLineReferenceResolver;
 import io.crate.external.S3ClientHelper;
+import io.crate.metadata.CoordinatorTxnCtx;
+import io.crate.metadata.Functions;
+import io.crate.metadata.NodeContext;
+import io.crate.metadata.Reference;
+import io.crate.metadata.TransactionContext;
+import io.crate.types.DataTypes;
 import org.elasticsearch.test.ESTestCase;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.net.URI;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 
+import static io.crate.execution.dsl.phases.FileUriCollectPhase.InputFormat.JSON;
+import static io.crate.testing.TestingHelpers.createReference;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 
@@ -106,4 +126,63 @@ public class S3FileInputTest extends ESTestCase {
         return listObjectSummaries;
     }
 
+    @Test
+    public void testArgsPassedToListObjectsWhenUriIncludesFileLevelWildCard() throws Exception {
+        S3FileInputFactory factory = mock(S3FileInputFactory.class);
+        when(factory.create()).thenReturn(s3FileInput);
+        when(amazonS3.listObjects(any(String.class),any(String.class))).thenReturn(objectListing);
+        when(clientBuilder.client(new URI("s3://fakeBucket3/prefix"))).thenReturn(amazonS3);
+        createBatchIterator(
+            List.of("s3://fakeBucket3/prefix/*.json"),
+            Map.of(S3FileInputFactory.NAME, factory),
+            JSON).moveNext();
+        verify(amazonS3).listObjects("fakeBucket3","prefix");
+    }
+
+    @Test
+    public void testArgsPassedToListObjectsWhenUriIncludesFolderLevelWildCard() throws Exception {
+        S3FileInputFactory factory = mock(S3FileInputFactory.class);
+        when(factory.create()).thenReturn(s3FileInput);
+        when(amazonS3.listObjects(any(String.class),any(String.class))).thenReturn(objectListing);
+        when(clientBuilder.client(new URI("s3://fakeBucket2"))).thenReturn(amazonS3);
+        when(clientBuilder.client(new URI("s3://fakeBucket2/prefix"))).thenReturn(amazonS3);
+        var it = createBatchIterator(
+            List.of(
+                "s3://fakeBucket2/prefix*/*.json",
+                "s3://fakeBucket2/*/*.json",
+                "s3://fakeBucket2/*/prefix2/prefix3/a.json",
+                "s3://fakeBucket2/*/prefix2/*/*.json",
+                "s3://fakeBucket2/prefix/p*x/*/*.json"
+            ),
+            Map.of(S3FileInputFactory.NAME, factory),
+            JSON);
+        while(it.moveNext());
+        verify(amazonS3,times(4)).listObjects("fakeBucket2","");
+        verify(amazonS3,times(1)).listObjects("fakeBucket2","prefix");
+    }
+
+    private BatchIterator<Row> createBatchIterator(Collection<String> fileUris,
+                                                   Map<String, FileInputFactory> fileInputFactoryMap,
+                                                   FileUriCollectPhase.InputFormat format) {
+
+        NodeContext nodeCtx = new NodeContext(new Functions(Map.of()));
+        InputFactory inputFactory = new InputFactory(nodeCtx);
+        TransactionContext txnCtx = CoordinatorTxnCtx.systemTransactionContext();
+        Reference raw = createReference("_raw", DataTypes.STRING);
+        InputFactory.Context<LineCollectorExpression<?>> ctx =
+            inputFactory.ctxForRefs(txnCtx, FileLineReferenceResolver::getImplementation);
+
+        List<Input<?>> inputs = Collections.singletonList(ctx.add(raw));
+        return FileReadingIterator.newInstance(
+            fileUris,
+            inputs,
+            ctx.expressions(),
+            null,
+            fileInputFactoryMap,
+            false,
+            1,
+            0,
+            CopyFromParserProperties.DEFAULT,
+            format);
+    }
 }
