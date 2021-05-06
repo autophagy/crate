@@ -32,19 +32,24 @@ import io.crate.types.ArrayType;
 import io.crate.types.DataType;
 import io.crate.types.DataTypes;
 
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 
 import static io.crate.expression.scalar.array.ArrayArgumentValidators.ensureInnerTypeIsNotUndefined;
 
-public class ArraySumFunction<T extends Number, R extends Number> extends Scalar<R, List<T>> {
+public class ArrayAvgFunction<T extends Number, R extends Number> extends Scalar<R, List<T>> {
 
-    public static final String NAME = "array_sum";
+    public static final String NAME = "array_avg";
 
-    private final DataType<R> returnType;
-    private final Function<List<T>, R> summationFunction;
+    private final Function<List<T>, R> avgFunction;
 
     public static void register(ScalarFunctionModule module) {
+
+        // All types except float and double have numeric average
+        // https://www.postgresql.org/docs/13/functions-aggregate.html
 
         module.register(
             Signature.scalar(
@@ -52,11 +57,11 @@ public class ArraySumFunction<T extends Number, R extends Number> extends Scalar
                 new ArrayType(DataTypes.NUMERIC).getTypeSignature(),
                 DataTypes.NUMERIC.getTypeSignature()
             ),
-            ArraySumFunction::new
+            ArrayAvgFunction::new
         );
 
         for (var supportedType : DataTypes.NUMERIC_PRIMITIVE_TYPES) {
-            DataType inputDependantOutputType = DataTypes.LONG;
+            DataType inputDependantOutputType = DataTypes.NUMERIC;
             if (supportedType == DataTypes.FLOAT || supportedType == DataTypes.DOUBLE) {
                 inputDependantOutputType = supportedType;
             }
@@ -67,7 +72,7 @@ public class ArraySumFunction<T extends Number, R extends Number> extends Scalar
                     new ArrayType(supportedType).getTypeSignature(),
                     inputDependantOutputType.getTypeSignature()
                 ),
-                ArraySumFunction::new
+                ArrayAvgFunction::new
             );
         }
     }
@@ -75,19 +80,40 @@ public class ArraySumFunction<T extends Number, R extends Number> extends Scalar
     private final Signature signature;
     private final Signature boundSignature;
 
-    private ArraySumFunction(Signature signature, Signature boundSignature) {
+    private ArrayAvgFunction(Signature signature, Signature boundSignature) {
         this.signature = signature;
         this.boundSignature = boundSignature;
-        returnType = (DataType<R>) signature.getReturnType().createType();
 
-        if (returnType == DataTypes.FLOAT) {
-            summationFunction = ArraySummationFunctions.FLOAT.getFunction();
-        } else if (returnType == DataTypes.DOUBLE) {
-            summationFunction = ArraySummationFunctions.DOUBLE.getFunction();
-        } else if (returnType == DataTypes.NUMERIC) {
-            summationFunction = ArraySummationFunctions.NUMERIC.getFunction();
+        DataType<R> returnType = (DataType<R>) signature.getReturnType().createType();
+        ArrayType<T> argumentType = (ArrayType<T>) signature.getArgumentTypes().get(0).createType();
+
+        // It's safe to divide by size as empty array argument is checked before applying function in evaluate()
+        // And for another case with array of only null values all ArraySummationFunctions return null and avgFunction returns null before division.
+
+        if (argumentType.innerType() == DataTypes.FLOAT) {
+            avgFunction = values -> {
+                long size = values.stream().filter(Objects::nonNull).count();
+                Float sum = (Float) ArraySummationFunctions.FLOAT.getFunction().apply(values);
+                return sum == null ? null : returnType.implicitCast(sum / size);
+            };
+        } else if (argumentType.innerType() == DataTypes.DOUBLE) {
+            avgFunction = values -> {
+                long size = values.stream().filter(Objects::nonNull).count();
+                Double sum = (Double) ArraySummationFunctions.DOUBLE.getFunction().apply(values);
+                return sum == null ? null : returnType.implicitCast(sum / size);
+            };
+        } else if (argumentType.innerType() == DataTypes.NUMERIC) {
+            avgFunction = values -> {
+                long size = values.stream().filter(Objects::nonNull).count();
+                BigDecimal sum = (BigDecimal) ArraySummationFunctions.NUMERIC.getFunction().apply(values);
+                return sum == null ? null : returnType.implicitCast(sum.divide(BigDecimal.valueOf(size), MathContext.DECIMAL128));
+            };
         } else {
-            summationFunction = ArraySummationFunctions.PRIMITIVE_NON_FLOAT_OVERFLOWING.getFunction();
+            avgFunction = values -> {
+                long size = values.stream().filter(Objects::nonNull).count();
+                BigDecimal sum = (BigDecimal) ArraySummationFunctions.PRIMITIVE_NON_FLOAT_NOT_OVERFLOWING.getFunction().apply(values);
+                return sum == null ? null : returnType.implicitCast(sum.divide(BigDecimal.valueOf(size), MathContext.DECIMAL128));
+            };
         }
 
         ensureInnerTypeIsNotUndefined(boundSignature.getArgumentDataTypes(), signature.getName().name());
@@ -109,6 +135,6 @@ public class ArraySumFunction<T extends Number, R extends Number> extends Scalar
         if (values == null || values.isEmpty()) {
             return null;
         }
-        return summationFunction.apply(values);
+        return avgFunction.apply(values);
     }
 }
