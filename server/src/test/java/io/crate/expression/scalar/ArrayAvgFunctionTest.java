@@ -1,102 +1,66 @@
 package io.crate.expression.scalar;
 
-import io.crate.execution.engine.aggregation.impl.KahanSummationForDouble;
-import io.crate.execution.engine.aggregation.impl.KahanSummationForFloat;
 import io.crate.expression.symbol.Literal;
-import io.crate.testing.TestingHelpers;
 import io.crate.types.ArrayType;
-import io.crate.types.DataType;
 import io.crate.types.DataTypes;
 import org.junit.Test;
 
 import java.math.BigDecimal;
-import java.math.MathContext;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
 
 import static io.crate.testing.Asserts.assertThrows;
 
 public class ArrayAvgFunctionTest extends ScalarTestCase {
 
     @Test
-    public void test_array_returns_avg_of_elements() {
-
-        // This test picks up random numbers but controls that overflow will not happen (overflow case is checked in another test).
-
-        List<DataType> typesToTest = new ArrayList(DataTypes.NUMERIC_PRIMITIVE_TYPES);
-        typesToTest.add(DataTypes.NUMERIC);
-
-        for(DataType type: typesToTest) {
-            var valuesToTest = TestingHelpers.getRandomsOfType(1, 10, type);
-
-            if (type != DataTypes.FLOAT && type != DataTypes.DOUBLE && type != DataTypes.NUMERIC) {
-                // check potential overflow and get rid of numbers causing overflow
-                long sum = 0;
-                for (int i = 0; i < valuesToTest.size(); i++) {
-                    if (valuesToTest.get(i) != null) {
-                        long nextNum = ((Number) valuesToTest.get(i)).longValue();
-                        try {
-                            sum = Math.addExact(sum, nextNum);
-                        } catch (ArithmeticException e) {
-                            valuesToTest = valuesToTest.subList(0, i); // excluding i
-                            break;
-                        }
-                    }
-                }
-            }
-
-
-
-            var kahanSummationForDouble = new KahanSummationForDouble();
-            var kahanSummationForFloat = new KahanSummationForFloat();
-            var optional = valuesToTest.stream()
-                .filter(Objects::nonNull)
-                .reduce((o1, o2) -> {
-                    if(o1 instanceof BigDecimal) {
-                        return ((BigDecimal) o1).add((BigDecimal) o2);
-                    } else if(o1 instanceof Double) {
-                        return kahanSummationForDouble.sum(((Number) o1).doubleValue(), ((Number) o2).doubleValue());
-                    } else if(o1 instanceof Float) {
-                        return kahanSummationForFloat.sum(((Number) o1).floatValue(), ((Number) o2).floatValue());
-                    } else {
-                        return DataTypes.LONG.implicitCast(o1) + DataTypes.LONG.implicitCast(o2);
-                    }
-                });
-
-            Number expected;
-            if(optional.isPresent()) {
-                var sum = optional.get();
-                long size = valuesToTest.stream().filter(Objects::nonNull).count();
-                if(sum instanceof BigDecimal) {
-                    expected = ((BigDecimal) sum).divide(BigDecimal.valueOf(size), MathContext.DECIMAL128);
-                } else if(sum instanceof Float) {
-                    expected = (Float) sum / size;
-                } else if(sum instanceof Double) {
-                    expected = (Double) sum / size;
-                } else {
-                    BigDecimal bd = BigDecimal.valueOf(((Number) sum).longValue());
-                    expected = bd.divide(BigDecimal.valueOf(size), MathContext.DECIMAL128);
-                }
-
-            } else {
-                expected = null;
-            }
-
-
-
-
-            String expression = String.format(Locale.ENGLISH,"array_avg(?::%s[])", type.getName());
-            assertEvaluate(expression, expected, Literal.of(valuesToTest, new ArrayType<>(type)));
-        }
-    }
-
-    @Test
     public void test_array_avg_on_long_array_returns_numeric() {
         assertEvaluate("array_avg(long_array)",
             new BigDecimal(Long.MAX_VALUE),
             Literal.of(List.of(Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE), new ArrayType<>(DataTypes.LONG))
+        );
+    }
+
+    @Test
+    public void test_array_avg_on_short_array_returns_numeric() {
+        assertEvaluate("array_avg(short_array)",
+            new BigDecimal(Short.MAX_VALUE),
+            Literal.of(List.of(Short.MAX_VALUE, Short.MAX_VALUE, Short.MAX_VALUE), new ArrayType<>(DataTypes.SHORT))
+        );
+    }
+
+    @Test
+    public void test_array_avg_on_byte_array_returns_numeric() {
+        assertEvaluate("array_avg(?)",
+            new BigDecimal(Byte.MAX_VALUE),
+            Literal.of(List.of(Byte.MAX_VALUE, Byte.MAX_VALUE, Byte.MAX_VALUE), new ArrayType<>(DataTypes.BYTE))
+        );
+    }
+
+    @Test
+    public void test_array_avg_on_int_array_returns_numeric() {
+        assertEvaluate("array_avg(?)",
+            new BigDecimal(Integer.MAX_VALUE),
+            Literal.of(List.of(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE), new ArrayType<>(DataTypes.INTEGER))
+        );
+    }
+
+    @Test
+    public void test_array_avg_on_float_array_returns_float() {
+        assertEvaluate("array_avg([1.0, 2.0] :: real[])",
+            1.5f);
+    }
+
+    @Test
+    public void test_array_avg_on_double_array_returns_double() {
+        assertEvaluate("array_avg([1.0, 2.0] :: double precision[])",
+            1.5d);
+    }
+
+    @Test
+    public void test_array_avg_on_numeric_array_returns_numeric() {
+        assertEvaluate("array_avg(?)",
+            new BigDecimal(5.5d),
+            Literal.of(List.of(BigDecimal.ONE, BigDecimal.TEN), new ArrayType<>(DataTypes.NUMERIC))
         );
     }
 

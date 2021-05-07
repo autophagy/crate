@@ -22,14 +22,9 @@
 
 package io.crate.expression.scalar;
 
-import io.crate.data.Input;
 import io.crate.expression.scalar.array.ArraySummationFunctions;
-import io.crate.metadata.NodeContext;
-import io.crate.metadata.Scalar;
-import io.crate.metadata.TransactionContext;
 import io.crate.metadata.functions.Signature;
 import io.crate.types.ArrayType;
-import io.crate.types.DataType;
 import io.crate.types.DataTypes;
 
 import java.math.BigDecimal;
@@ -38,13 +33,62 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 
-import static io.crate.expression.scalar.array.ArrayArgumentValidators.ensureInnerTypeIsNotUndefined;
-
-public class ArrayAvgFunction<T extends Number, R extends Number> extends Scalar<R, List<T>> {
+public class ArrayAvgFunction {
 
     public static final String NAME = "array_avg";
 
-    private final Function<List<T>, R> avgFunction;
+    private enum Operations {
+        FLOAT(
+            (Function<List<Float>, Float>) list -> {
+                if (list == null || list.isEmpty()) {
+                    return null;
+                }
+                long size = list.stream().filter(Objects::nonNull).count();
+                Float sum = (Float) ArraySummationFunctions.FLOAT.getFunction().apply(list);
+                return sum == null ? null : sum / size;
+            }
+        ),
+        DOUBLE(
+            (Function<List<Double>, Double>) list -> {
+                if (list == null || list.isEmpty()) {
+                    return null;
+                }
+                long size = list.stream().filter(Objects::nonNull).count();
+                Double sum = (Double) ArraySummationFunctions.DOUBLE.getFunction().apply(list);
+                return sum == null ? null : sum / size;
+            }
+        ),
+        NUMERIC(
+            (Function<List<BigDecimal>, BigDecimal>) list -> {
+                if (list == null || list.isEmpty()) {
+                    return null;
+                }
+                long size = list.stream().filter(Objects::nonNull).count();
+                BigDecimal sum = (BigDecimal) ArraySummationFunctions.NUMERIC.getFunction().apply(list);
+                return sum == null ? null : sum.divide(BigDecimal.valueOf(size), MathContext.DECIMAL128);
+            }
+        ),
+        INTEGRAL_PRIMITIVE(
+            (Function<List<Number>, Number>) list -> {
+                if (list == null || list.isEmpty()) {
+                    return null;
+                }
+                long size = list.stream().filter(Objects::nonNull).count();
+                BigDecimal sum = (BigDecimal) ArraySummationFunctions.PRIMITIVE_NON_FLOAT_NOT_OVERFLOWING.getFunction().apply(list);
+                return sum == null ? null : sum.divide(BigDecimal.valueOf(size), MathContext.DECIMAL128);
+            }
+        );
+
+        private final Function function;
+
+        Operations(Function function) {
+            this.function = function;
+        }
+
+        public Function getFunction() {
+            return function;
+        }
+    }
 
     public static void register(ScalarFunctionModule module) {
 
@@ -57,84 +101,55 @@ public class ArrayAvgFunction<T extends Number, R extends Number> extends Scalar
                 new ArrayType(DataTypes.NUMERIC).getTypeSignature(),
                 DataTypes.NUMERIC.getTypeSignature()
             ),
-            ArrayAvgFunction::new
+            (signature, boundSignature) -> new UnaryScalar<>(
+                signature,
+                boundSignature,
+                new ArrayType(DataTypes.NUMERIC),
+                Operations.NUMERIC.getFunction())
         );
 
+        module.register(
+            Signature.scalar(
+                NAME,
+                new ArrayType(DataTypes.FLOAT).getTypeSignature(),
+                DataTypes.FLOAT.getTypeSignature()
+            ),
+            (signature, boundSignature) -> new UnaryScalar<>(
+                signature,
+                boundSignature,
+                new ArrayType(DataTypes.FLOAT),
+                Operations.FLOAT.getFunction())
+        );
+
+        module.register(
+            Signature.scalar(
+                NAME,
+                new ArrayType(DataTypes.DOUBLE).getTypeSignature(),
+                DataTypes.DOUBLE.getTypeSignature()
+            ),
+            (signature, boundSignature) -> new UnaryScalar<>(
+                signature,
+                boundSignature,
+                new ArrayType(DataTypes.DOUBLE),
+                Operations.DOUBLE.getFunction())
+        );
+
+
         for (var supportedType : DataTypes.NUMERIC_PRIMITIVE_TYPES) {
-            DataType inputDependantOutputType = DataTypes.NUMERIC;
-            if (supportedType == DataTypes.FLOAT || supportedType == DataTypes.DOUBLE) {
-                inputDependantOutputType = supportedType;
+            if (supportedType != DataTypes.FLOAT && supportedType != DataTypes.DOUBLE) {
+                module.register(
+                    Signature.scalar(
+                        NAME,
+                        new ArrayType(supportedType).getTypeSignature(),
+                        DataTypes.NUMERIC.getTypeSignature()
+                    ),
+                    (signature, boundSignature) -> new UnaryScalar<>(
+                        signature,
+                        boundSignature,
+                        new ArrayType(supportedType),
+                        Operations.INTEGRAL_PRIMITIVE.getFunction())
+                );
             }
-
-            module.register(
-                Signature.scalar(
-                    NAME,
-                    new ArrayType(supportedType).getTypeSignature(),
-                    inputDependantOutputType.getTypeSignature()
-                ),
-                ArrayAvgFunction::new
-            );
         }
-    }
-
-    private final Signature signature;
-    private final Signature boundSignature;
-
-    private ArrayAvgFunction(Signature signature, Signature boundSignature) {
-        this.signature = signature;
-        this.boundSignature = boundSignature;
-
-        DataType<R> returnType = (DataType<R>) signature.getReturnType().createType();
-        ArrayType<T> argumentType = (ArrayType<T>) signature.getArgumentTypes().get(0).createType();
-
-        // It's safe to divide by size as empty array argument is checked before applying function in evaluate()
-        // And for another case with array of only null values all ArraySummationFunctions return null and avgFunction returns null before division.
-
-        if (argumentType.innerType() == DataTypes.FLOAT) {
-            avgFunction = values -> {
-                long size = values.stream().filter(Objects::nonNull).count();
-                Float sum = (Float) ArraySummationFunctions.FLOAT.getFunction().apply(values);
-                return sum == null ? null : returnType.implicitCast(sum / size);
-            };
-        } else if (argumentType.innerType() == DataTypes.DOUBLE) {
-            avgFunction = values -> {
-                long size = values.stream().filter(Objects::nonNull).count();
-                Double sum = (Double) ArraySummationFunctions.DOUBLE.getFunction().apply(values);
-                return sum == null ? null : returnType.implicitCast(sum / size);
-            };
-        } else if (argumentType.innerType() == DataTypes.NUMERIC) {
-            avgFunction = values -> {
-                long size = values.stream().filter(Objects::nonNull).count();
-                BigDecimal sum = (BigDecimal) ArraySummationFunctions.NUMERIC.getFunction().apply(values);
-                return sum == null ? null : returnType.implicitCast(sum.divide(BigDecimal.valueOf(size), MathContext.DECIMAL128));
-            };
-        } else {
-            avgFunction = values -> {
-                long size = values.stream().filter(Objects::nonNull).count();
-                BigDecimal sum = (BigDecimal) ArraySummationFunctions.PRIMITIVE_NON_FLOAT_NOT_OVERFLOWING.getFunction().apply(values);
-                return sum == null ? null : returnType.implicitCast(sum.divide(BigDecimal.valueOf(size), MathContext.DECIMAL128));
-            };
-        }
-
-        ensureInnerTypeIsNotUndefined(boundSignature.getArgumentDataTypes(), signature.getName().name());
-    }
-
-    @Override
-    public Signature signature() {
-        return signature;
-    }
-
-    @Override
-    public Signature boundSignature() {
-        return boundSignature;
-    }
-
-    @Override
-    public R evaluate(TransactionContext txnCtx, NodeContext nodeCtx, Input[] args) {
-        List<T> values = (List) args[0].value();
-        if (values == null || values.isEmpty()) {
-            return null;
-        }
-        return avgFunction.apply(values);
     }
 }
