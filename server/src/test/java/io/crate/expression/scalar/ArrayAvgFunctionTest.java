@@ -101,7 +101,7 @@ public class ArrayAvgFunctionTest extends ScalarTestCase {
     }
 
     @Test
-    public void test_array_first_element_null_returns_avg() {
+    public void test_array_avg_ignores_null_element_values() {
         assertEvaluate("array_avg([null, 1])", BigDecimal.ONE);
     }
 
