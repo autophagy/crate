@@ -126,7 +126,7 @@ public class ArrayAvgFunctionTest extends ScalarTestCase {
     }
 
     @Test
-    public void test_empty_array_given_directly_throws_exception() {
+    public void test_array_avg_with_array_of_undefined_inner_type_throws_exception() {
         assertThrows(() -> assertEvaluate("array_avg([])", null),
             UnsupportedOperationException.class,
             "Unknown function: array_avg([]), no overload found for matching argument types: (undefined_array).");
