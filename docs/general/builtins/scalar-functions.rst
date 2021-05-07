@@ -2491,15 +2491,17 @@ function supports arrays of any of the :ref:`primitive types
 ``array_sum(array)``
 --------------------
 
-Returns the sum of array elements that are not ``NULL``. If
-``array`` is ``NULL`` or an empty array, the function returns ``NULL``. This
-function supports arrays of any of the :ref:`numeric types
-<data-type-numeric>`.Depending on the argument type a suitable return type
-is chosen. For ``real`` and ``double precison`` argument types the return type
-is equal to the argument type.
-For ``char``, ``smallint``, ``integer`` and ``bigint`` the return type
-changes to ``bigint``. If the range of ``bigint`` values (-2^64 to 2^64-1) gets
-exceeded an ``ArithmeticException`` will be raised.
+Returns the sum of array elements that are not ``NULL``. If ``array`` is
+``NULL`` or an empty array, the function returns ``NULL``. This function
+supports arrays of any :ref:`numeric types
+<data-type-numeric>`. 
+
+For ``real`` and ``double precison`` arguments, the return type is equal to the
+argument type. For ``char``, ``smallint``, ``integer``, and ``bigint``
+arguments, the return type changes to ``bigint``.
+
+If any ``bigint`` value exceeds range limits (-2^64 to 2^64-1), an
+``ArithmeticException`` will be raised.
 
 ::
 
