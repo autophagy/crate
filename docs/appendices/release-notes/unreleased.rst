@@ -71,8 +71,8 @@ Changes
 - Added the :ref:`array_sum <scalar-array-sum>` scalar function
   that returns the sum of all elements in an array.
 
-- Added the :ref:`array_avg <scalar-array-avg>` scalar function
-  that returns the sum of all elements in an array.
+- Added the :ref:`array_avg <scalar-array-avg>` scalar function that returns
+  the sum of all elements in an array.
 
 - Added support for reading ``cgroup`` information in the ``cgroup v2`` format.
 
