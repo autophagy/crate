@@ -57,8 +57,8 @@ public class OverflowAwareMutableLong {
         // Check for overflow before it happens, taken from Math.addExact
         long newSum = primitiveSum + value;
         if (((primitiveSum ^ newSum) & (value ^ newSum)) < 0) {
-            //Overflow is about to happen, cannot add.
-            //Flushing gathered primitive sum and value to BigDecimal
+            // Overflow is about to happen, cannot add.
+            // Flushing gathered primitive sum and value to BigDecimal
             bigDecimalSum = bigDecimalSum.add(BigDecimal.valueOf(primitiveSum)).add(BigDecimal.valueOf(value));
             primitiveSum = 0; //Reset primitive after the flushing
         } else {
