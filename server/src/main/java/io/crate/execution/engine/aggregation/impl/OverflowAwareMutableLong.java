@@ -54,7 +54,7 @@ public class OverflowAwareMutableLong {
 
     public void add(long value) {
         hasValue = true;
-        //Check for overflow before it happens, taken from Math.addExact
+        // Check for overflow before it happens, taken from Math.addExact
         long newSum = primitiveSum + value;
         if (((primitiveSum ^ newSum) & (value ^ newSum)) < 0) {
             //Overflow is about to happen, cannot add.
