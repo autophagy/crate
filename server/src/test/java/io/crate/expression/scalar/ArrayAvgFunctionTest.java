@@ -107,7 +107,7 @@ public class ArrayAvgFunctionTest extends ScalarTestCase {
 
     @Test
     public void test_all_elements_nulls_results_in_null() {
-        assertEvaluate("array_avg(cast([null, null] as array(integer)))", null);
+        assertEvaluate("array_avg([null, null]::integer[])", null);
     }
 
     @Test
