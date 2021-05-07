@@ -93,7 +93,7 @@ public class ArrayAvgFunctionTest extends ScalarTestCase {
     }
 
     @Test
-    public void test_array_big_numbers_no_casting_returns_avg() {
+    public void test_array_avg_on_long_array_returns_numeric() {
         assertEvaluate("array_avg(long_array)",
             new BigDecimal(Long.MAX_VALUE),
             Literal.of(List.of(Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE), new ArrayType<>(DataTypes.LONG))
