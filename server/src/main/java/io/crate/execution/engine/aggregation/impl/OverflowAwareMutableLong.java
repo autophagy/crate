@@ -62,7 +62,8 @@ public class OverflowAwareMutableLong {
             bigDecimalSum = bigDecimalSum.add(BigDecimal.valueOf(primitiveSum)).add(BigDecimal.valueOf(value));
             primitiveSum = 0; //Reset primitive after the flushing
         } else {
-            primitiveSum += value; //Keep gathering in primitive, overflow is not happening here.
+            // Keep gathering in primitive, overflow is not happening here.
+            primitiveSum += value;
         }
     }
 
