@@ -28,8 +28,10 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.endsWith;
@@ -64,7 +66,7 @@ public class NodeMetadataTests extends ESTestCase {
     }
 
     @Test
-    public void testReadsFormatWithoutVersion() throws IOException {
+    public void testReadsFormatWithoutVersion() throws IOException, URISyntaxException {
         // the behaviour tested here is only appropriate if the current version is compatible with versions 7 and earlier
         assertTrue(Version.CURRENT.minimumIndexCompatibilityVersion().onOrBefore(Version.V_4_0_0));
         // when the current version is incompatible with version 7, the behaviour should change to reject files like the given resource
@@ -72,7 +74,7 @@ public class NodeMetadataTests extends ESTestCase {
 
         final Path tempDir = createTempDir();
         final Path stateDir = Files.createDirectory(tempDir.resolve(MetadataStateFormat.STATE_DIR_NAME));
-        final InputStream resource = this.getClass().getResourceAsStream("testReadsFormatWithoutVersion.binary");
+        final InputStream resource = this.getClass().getResourceAsStream("/org/elasticsearch/env/testReadsFormatWithoutVersion.binary");
         assertThat(resource, notNullValue());
         Files.copy(resource, stateDir.resolve(NodeMetadata.FORMAT.getStateFileName(between(0, Integer.MAX_VALUE))));
         final NodeMetadata nodeMetadata = NodeMetadata.FORMAT.loadLatestState(logger, xContentRegistry(), tempDir);
