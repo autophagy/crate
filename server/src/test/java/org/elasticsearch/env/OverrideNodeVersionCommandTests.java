@@ -32,6 +32,7 @@ import org.elasticsearch.gateway.PersistedClusterStateService;
 import org.elasticsearch.test.ESTestCase;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -70,6 +71,7 @@ public class OverrideNodeVersionCommandTests extends ESTestCase {
                                                                                            xContentRegistry(), BigArrays.NON_RECYCLING_INSTANCE, true).loadBestOnDiskState().metadata.persistentSettings()));
     }
 
+    @Test
     public void testFailsOnEmptyPath() {
         final Path emptyPath = createTempDir();
         final MockTerminal mockTerminal = new MockTerminal();
@@ -79,6 +81,7 @@ public class OverrideNodeVersionCommandTests extends ESTestCase {
         expectThrows(IllegalStateException.class, () -> mockTerminal.readText(""));
     }
 
+    @Test
     public void testFailsIfUnnecessary() throws IOException {
         final Version nodeVersion = Version.fromId(between(Version.CURRENT.minimumIndexCompatibilityVersion().internalId, Version.CURRENT.internalId));
         PersistedClusterStateService.overrideVersion(nodeVersion, nodePaths);
@@ -92,6 +95,7 @@ public class OverrideNodeVersionCommandTests extends ESTestCase {
         expectThrows(IllegalStateException.class, () -> mockTerminal.readText(""));
     }
 
+    @Test
     public void testWarnsIfTooOld() throws Exception {
         final Version nodeVersion = NodeMetadataTests.tooOldVersion();
         PersistedClusterStateService.overrideVersion(nodeVersion, nodePaths);
@@ -112,6 +116,7 @@ public class OverrideNodeVersionCommandTests extends ESTestCase {
         assertThat(nodeMetadata.nodeVersion(), equalTo(nodeVersion));
     }
 
+    @Test
     public void testWarnsIfTooNew() throws Exception {
         final Version nodeVersion = NodeMetadataTests.tooNewVersion();
         PersistedClusterStateService.overrideVersion(nodeVersion, nodePaths);
@@ -131,6 +136,7 @@ public class OverrideNodeVersionCommandTests extends ESTestCase {
         assertThat(nodeMetadata.nodeVersion(), equalTo(nodeVersion));
     }
 
+    @Test
     public void testOverwritesIfTooOld() throws Exception {
         final Version nodeVersion = NodeMetadataTests.tooOldVersion();
         PersistedClusterStateService.overrideVersion(nodeVersion, nodePaths);
@@ -150,6 +156,7 @@ public class OverrideNodeVersionCommandTests extends ESTestCase {
         assertThat(nodeMetadata.nodeVersion(), equalTo(Version.CURRENT));
     }
 
+    @Test
     public void testOverwritesIfTooNew() throws Exception {
         final Version nodeVersion = NodeMetadataTests.tooNewVersion();
         PersistedClusterStateService.overrideVersion(nodeVersion, nodePaths);
