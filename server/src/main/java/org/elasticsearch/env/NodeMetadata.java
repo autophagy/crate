@@ -90,7 +90,8 @@ public final class NodeMetadata {
                 "cannot upgrade a node from version [" + nodeVersion + "] directly to version [" + Version.CURRENT + "]");
         }
 
-        if (nodeVersion.after(Version.CURRENT)) {
+        // we allow minor version downgrades for hotfixes
+        if (nodeVersion.major < Version.CURRENT.major) {
             throw new IllegalStateException(
                 "cannot downgrade a node from version [" + nodeVersion + "] to version [" + Version.CURRENT + "]");
         }
