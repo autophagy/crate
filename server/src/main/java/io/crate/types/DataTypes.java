@@ -49,6 +49,7 @@ import org.locationtech.spatial4j.shape.impl.PointImpl;
 import org.locationtech.spatial4j.shape.jts.JtsPoint;
 
 import io.crate.Streamer;
+import io.crate.sql.tree.BitString;
 
 public final class DataTypes {
 
@@ -283,7 +284,7 @@ public final class DataTypes {
         entry(PointImpl.class, GEO_POINT),
         entry(JtsPoint.class, GEO_POINT),
         entry(Character.class, STRING),
-        entry(BitSet.class, BitStringType.MAX)
+        entry(BitString.class, BitStringType.MAX)
     );
 
     public static DataType<?> guessType(Object value) {
@@ -296,7 +297,9 @@ public final class DataTypes {
         } else if (value.getClass().isArray()) {
             return valueFromList(Arrays.asList((Object[]) value));
         }
-        return POJO_TYPE_MAPPING.get(value.getClass());
+        DataType<?> dataType = POJO_TYPE_MAPPING.get(value.getClass());
+        assert dataType != null : "Must be able to guess type of value: " + value;
+        return dataType;
     }
 
     /**

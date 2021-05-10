@@ -108,7 +108,7 @@ public class BitStringFieldMapper extends FieldMapper {
 
         @Override
         public Query termQuery(Object value, QueryShardContext context) {
-            BytesRef bytesRef = new BytesRef(((BitSet) value).toByteArray());
+            BytesRef bytesRef = new BytesRef(((BitString) value).bitSet().toByteArray());
             return new TermQuery(new Term(name(), bytesRef));
         }
 

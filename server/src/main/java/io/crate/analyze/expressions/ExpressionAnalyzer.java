@@ -893,9 +893,8 @@ public class ExpressionAnalyzer {
 
         @Override
         public Symbol visitBitString(BitString bitString, ExpressionAnalysisContext context) {
-            BitSet bitSet = bitString.bitSet();
             BitStringType bitStringType = new BitStringType(bitString.length());
-            return Literal.of(bitStringType, bitSet);
+            return Literal.of(bitStringType, bitString);
         }
 
         @Override

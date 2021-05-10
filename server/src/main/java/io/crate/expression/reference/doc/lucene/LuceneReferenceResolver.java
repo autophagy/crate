@@ -166,7 +166,7 @@ public class LuceneReferenceResolver implements ReferenceResolver<LuceneCollecto
         }
         switch (ref.valueType().id()) {
             case BitStringType.ID:
-                return new BitStringColumnReference(fqn);
+                return new BitStringColumnReference(fqn, ((BitStringType) ref.valueType()).length());
             case ByteType.ID:
                 return new ByteColumnReference(fqn);
             case ShortType.ID:

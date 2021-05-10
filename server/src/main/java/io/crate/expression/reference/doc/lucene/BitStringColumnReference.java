@@ -30,24 +30,27 @@ import org.apache.lucene.index.DocValues;
 import org.apache.lucene.index.SortedDocValues;
 
 import io.crate.execution.engine.fetch.ReaderContext;
+import io.crate.sql.tree.BitString;
 
-public class BitStringColumnReference extends LuceneCollectorExpression<BitSet> {
+public class BitStringColumnReference extends LuceneCollectorExpression<BitString> {
 
     private final String columnName;
+    private final int length;
     private int docId;
     private SortedDocValues values;
 
-    public BitStringColumnReference(String columnName) {
+    public BitStringColumnReference(String columnName, int length) {
         this.columnName = columnName;
+        this.length = length;
     }
 
     @Override
-    public BitSet value() {
+    public BitString value() {
         try {
             if (values.advanceExact(docId)) {
                 var bytesRef = values.binaryValue();
                 var buffer = ByteBuffer.wrap(bytesRef.bytes, bytesRef.offset, bytesRef.length);
-                return BitSet.valueOf(buffer);
+                return new BitString(BitSet.valueOf(buffer), length);
             } else {
                 return null;
             }

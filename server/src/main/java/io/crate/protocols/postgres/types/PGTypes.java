@@ -86,6 +86,7 @@ public class PGTypes {
         .put(new ArrayType<>(RowType.EMPTY), PGArray.EMPTY_RECORD_ARRAY)
         .put(new ArrayType<>(DataTypes.REGPROC), PGArray.REGPROC_ARRAY)
         .put(new ArrayType<>(DataTypes.REGCLASS), PGArray.REGCLASS_ARRAY)
+        .put(new ArrayType<>(BitStringType.MAX), PGArray.BIT_ARRAY)
         .put(DataTypes.OIDVECTOR, PgOidVectorType.INSTANCE)
         .build();
 

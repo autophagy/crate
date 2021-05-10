@@ -24,13 +24,15 @@ package io.crate.types;
 import java.io.IOException;
 import java.util.BitSet;
 import java.util.List;
+import java.util.Locale;
 
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 
 import io.crate.Streamer;
+import io.crate.sql.tree.BitString;
 
-public final class BitStringType extends DataType<BitSet> implements Streamer<BitSet>, FixedWidthType {
+public final class BitStringType extends DataType<BitString> implements Streamer<BitString>, FixedWidthType {
 
     public static final int ID = 25;
     // TODO: better max length limit, or use a `ZERO` sentinel?
@@ -69,10 +71,10 @@ public final class BitStringType extends DataType<BitSet> implements Streamer<Bi
     }
 
     @Override
-    public int compare(BitSet o1, BitSet o2) {
+    public int compare(BitString o1, BitString o2) {
         if (o1.equals(o2)) {
             return 0;
-        } else if (o1.size() < o2.size()) {
+        } else if (o1.length() < o2.length()) {
             return -1;
         } else {
             return 1;
@@ -95,33 +97,47 @@ public final class BitStringType extends DataType<BitSet> implements Streamer<Bi
     }
 
     @Override
-    public Streamer<BitSet> streamer() {
+    public Streamer<BitString> streamer() {
         return this;
     }
 
     @Override
-    public BitSet sanitizeValue(Object value) {
-        return (BitSet) value;
+    public BitString sanitizeValue(Object value) {
+        return (BitString) value;
     }
 
     @Override
-    public BitSet implicitCast(Object value) throws IllegalArgumentException, ClassCastException {
-        return (BitSet) value;
+    public BitString implicitCast(Object value) throws IllegalArgumentException, ClassCastException {
+        // TODO: implicit base64 decoding?
+        return (BitString) value;
     }
 
     @Override
-    public BitSet valueForInsert(Object value) {
-        return super.valueForInsert(value);
+    public BitString valueForInsert(Object value) {
+        if (value == null) {
+            return null;
+        }
+        BitString bitString = (BitString) value;
+        if (bitString.length() == length) {
+            return bitString;
+        }
+        throw new IllegalArgumentException(String.format(
+            Locale.ENGLISH,
+            "bit string length %d does not match type bit(%d)",
+            bitString.length(),
+            length
+        ));
     }
 
     @Override
-    public BitSet readValueFrom(StreamInput in) throws IOException {
-        return BitSet.valueOf(in.readByteArray());
+    public BitString readValueFrom(StreamInput in) throws IOException {
+        return new BitString(BitSet.valueOf(in.readByteArray()), in.readVInt());
     }
 
     @Override
-    public void writeValueTo(StreamOutput out, BitSet v) throws IOException {
-        out.writeByteArray(v.toByteArray());
+    public void writeValueTo(StreamOutput out, BitString v) throws IOException {
+        out.writeByteArray(v.bitSet().toByteArray());
+        out.writeVInt(v.length());
     }
 
     @Override

@@ -1957,7 +1957,7 @@ public class TransportSQLActionTest extends SQLIntegrationTestCase {
 
         execute("select xs, _raw from tbl where xs = B'0010'");
         assertThat(TestingHelpers.printedTable(response.rows()), is(
-            "{2}| {\"xs\":\"BA\"}\n"
+            "B'0010'| {\"xs\":\"BA\"}\n"
         ));
 
         var properties = new Properties();

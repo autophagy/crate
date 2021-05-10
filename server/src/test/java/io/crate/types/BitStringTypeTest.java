@@ -23,7 +23,6 @@ package io.crate.types;
 
 import static org.hamcrest.CoreMatchers.is;
 
-import java.util.BitSet;
 import java.util.function.Supplier;
 
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
@@ -31,6 +30,8 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.test.ESTestCase;
 import org.junit.Test;
 
+import io.crate.sql.tree.BitString;
+import io.crate.testing.Asserts;
 import io.crate.testing.DataTypeTesting;
 
 public class BitStringTypeTest extends ESTestCase {
@@ -38,20 +39,22 @@ public class BitStringTypeTest extends ESTestCase {
     @Test
     public void test_value_streaming_roundtrip() throws Exception {
         BitStringType type = new BitStringType(randomInt(80));
-        Supplier<BitSet> dataGenerator = DataTypeTesting.getDataGenerator(type);
-        BitSet bitSet = dataGenerator.get();
+        Supplier<BitString> dataGenerator = DataTypeTesting.getDataGenerator(type);
+        var value = dataGenerator.get();
 
         var out = new BytesStreamOutput();
-        type.writeValueTo(out, bitSet);
+        type.writeValueTo(out, value);
         StreamInput in = out.bytes().streamInput();
-        assertThat(type.readValueFrom(in), is(bitSet));
+        assertThat(type.readValueFrom(in), is(value));
     }
 
     @Test
     public void test_value_for_insert_only_allows_exact_length_matches() throws Exception {
-        // TODO: Can't implement validation as part of `valueForInsert`
-        // if the value doesn't contain the length
         BitStringType type = new BitStringType(3);
-        assertThat(1, is(2));
+        Asserts.assertThrows(
+            () -> type.valueForInsert(BitString.ofRawBits("00010001")),
+            IllegalArgumentException.class,
+            "bit string length 8 does not match type bit(3)"
+        );
     }
 }

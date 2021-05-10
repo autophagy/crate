@@ -27,7 +27,7 @@ import java.util.BitSet;
 import io.crate.sql.tree.BitString;
 import io.netty.buffer.ByteBuf;
 
-public class BitType extends PGType<BitSet> {
+public class BitType extends PGType<BitString> {
 
     public static final int OID = 1560;
     public static final BitType INSTANCE = new BitType();
@@ -58,30 +58,30 @@ public class BitType extends PGType<BitSet> {
     }
 
     @Override
-    public int writeAsBinary(ByteBuf buffer, BitSet value) {
+    public int writeAsBinary(ByteBuf buffer, BitString value) {
         // TODO: verify this is the right format
-        byte[] byteArray = value.toByteArray();
+        byte[] byteArray = value.bitSet().toByteArray();
         buffer.writeBytes(byteArray);
         return byteArray.length;
     }
 
     @Override
-    public BitSet readBinaryValue(ByteBuf buffer, int valueLength) {
+    public BitString readBinaryValue(ByteBuf buffer, int valueLength) {
         // TODO: verify this is the right format
         byte[] bytes = new byte[valueLength];
         buffer.readBytes(bytes);
-        return BitSet.valueOf(bytes);
+        return new BitString(BitSet.valueOf(bytes), length);
     }
 
     @Override
-    byte[] encodeAsUTF8Text(BitSet value) {
+    byte[] encodeAsUTF8Text(BitString value) {
         assert length >= 0 : "BitType length must be set";
-        return BitString.toBitString(value, length).getBytes(StandardCharsets.UTF_8);
+        return value.asBitString().getBytes(StandardCharsets.UTF_8);
     }
 
     @Override
-    BitSet decodeUTF8Text(byte[] bytes) {
+    BitString decodeUTF8Text(byte[] bytes) {
         String text = new String(bytes, StandardCharsets.UTF_8);
-        return BitString.ofBitString(text).bitSet();
+        return BitString.ofBitString(text);
     }
 }

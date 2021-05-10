@@ -41,6 +41,7 @@ import org.joda.time.Period;
 import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 import org.locationtech.spatial4j.shape.impl.PointImpl;
 
+import io.crate.sql.tree.BitString;
 import io.crate.types.BitStringType;
 import io.crate.types.BooleanType;
 import io.crate.types.ByteType;
@@ -169,7 +170,7 @@ public class DataTypeTesting {
                     for (int i = 0; i < length; i++) {
                         bitSet.set(i, random.nextBoolean());
                     }
-                    return (T) bitSet;
+                    return (T) new BitString(bitSet, length);
                 };
 
         }

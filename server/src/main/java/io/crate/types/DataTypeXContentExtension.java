@@ -73,9 +73,11 @@ public class DataTypeXContentExtension implements XContentBuilderExtension {
                 b.value(timetz.getSecondsFromUTC());
                 b.endArray();
             }),
-            Map.entry(BitSet.class, (b, v) -> {
-                BitSet bitset = (BitSet) v;
-                byte[] byteArray = bitset.toByteArray();
+            Map.entry(BitString.class, (b, v) -> {
+                // TODO: Go with different format?
+                // This is both, stored in the _raw source and also what is returned via HTTP
+                BitString bitString = (BitString) v;
+                byte[] byteArray = bitString.bitSet().toByteArray();
                 String encoded = Base64.getEncoder().withoutPadding().encodeToString(byteArray);
                 b.value(encoded);
             })
