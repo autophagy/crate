@@ -23,7 +23,6 @@ import joptsimple.OptionSet;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
 import org.elasticsearch.cli.Terminal;
-import org.elasticsearch.cli.UserException;
 import org.elasticsearch.cluster.coordination.ElasticsearchNodeCommand;
 import org.elasticsearch.gateway.PersistedClusterStateService;
 
@@ -35,8 +34,8 @@ public class OverrideNodeVersionCommand extends ElasticsearchNodeCommand {
     private static final String TOO_NEW_MESSAGE =
         DELIMITER +
         "\n" +
-        "This data path was last written by Elasticsearch version [V_NEW] and may no\n" +
-        "longer be compatible with Elasticsearch version [V_CUR]. This tool will bypass\n" +
+        "This data path was last written by CrateDB version [V_NEW] and may no\n" +
+        "longer be compatible with CrateDB version [V_CUR]. This tool will bypass\n" +
         "this compatibility check, allowing a version [V_CUR] node to start on this data\n" +
         "path, but a version [V_CUR] node may not be able to read this data or may read\n" +
         "it incorrectly leading to data loss.\n" +
@@ -50,8 +49,8 @@ public class OverrideNodeVersionCommand extends ElasticsearchNodeCommand {
     private static final String TOO_OLD_MESSAGE =
         DELIMITER +
         "\n" +
-        "This data path was last written by Elasticsearch version [V_OLD] which may be\n" +
-        "too old to be readable by Elasticsearch version [V_CUR].  This tool will bypass\n" +
+        "This data path was last written by CrateDB version [V_OLD] which may be\n" +
+        "too old to be readable by CrateDB version [V_CUR].  This tool will bypass\n" +
         "this compatibility check, allowing a version [V_CUR] node to start on this data\n" +
         "path, but this version [V_CUR] node may not be able to read this data or may\n" +
         "read it incorrectly leading to data loss.\n" +
